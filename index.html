@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>יחידה 3 – תדר 106: מתחברים ומאזינים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&display=swap" rel="stylesheet">
+<!--
+  מבנה הקובץ (להמרה ל-Storyline) – לפי "יח' 3.story" ועיצובי השקפים בתיקיית קלאוד\תמונות:
+  - במה קבועה 1200x675 (גודל הסטורי). כל רכיב ממוקם בפיקסלים של הסטורי (left/top/width/height).
+  - <section class="slide"> = שקף. data-title = שם השקף, data-chapter = פרק בתפריט העליון (0-7).
+  - <div class="layer" data-layer="..."> = שכבה בתוך השקף (פופאפ).
+  - #master = פס עליון (לוגו + תפריט פרקים + כפתור צליל).
+  - .slide.chan = שקף ערוץ (לפי "שקף 5/7/9/11 בתסריט"): תמונת הסצנה ברקע, עמודת כרטיסים מימין
+                  (.col: כרטיס כותרת + כרטיסי תוכן עם אייקון + כפתור כתום), ואזור לחיצה על מסך המחשב (.screen) עם כפתור הפעלה.
+  - .slide.vid  = שקף סרטון סמן בתוך מסגרת מסך. הכפתור "חזרה ללוח הערוצים" מופיע בסיום הסרטון.
+  - .slide.map  = לוח הערוצים (לפי "שקף ניווט - שקף 4 בתסריט"): 6 המסכים שבתמונה = אזורי לחיצה (.scr).
+                  data-done = כמה ערוצים כבר כוילו. מכויל = ירוק, הבא = מהבהב, השאר נעולים.
+  - צבעים: כחול כהה #001930 | תכלת #6CCFF6 | ירוק #B2D234 | כתום #F99D26.
+-->
+<style>
+:root{--navy:#001930;--sky:#6CCFF6;--green:#B2D234;--orange:#F99D26;--gray:#969696;--ink:#0d1b3e;--blue:#1976E8}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0a1220;overflow:hidden}
+body{font-family:'Assistant',Arial,sans-serif;color:var(--navy);-webkit-font-smoothing:antialiased}
+#stage{position:absolute;width:1200px;height:675px;left:50%;top:50%;transform-origin:center center;overflow:hidden;background:#000;direction:rtl}
+.a{position:absolute}
+img{display:block;user-select:none;-webkit-user-drag:none}
+button{font-family:inherit;cursor:pointer;border:0;background:none;color:inherit}
+b{font-weight:800}
+
+/* font sizes (pt של הסטורי -> px) */
+.f10{font-size:13.3px}.f11{font-size:14.7px}.f128{font-size:17px}.f14{font-size:18.7px}.f16{font-size:21.3px}.f192{font-size:25.6px}.f27{font-size:36px}
+.lh{line-height:1.3}
+.w{color:#fff}.sky{color:var(--sky)}.grn{color:var(--green)}.org{color:var(--orange)}.nv{color:var(--navy)}
+.c{text-align:center}
+p+p{margin-top:10px}
+
+/* slides & layers */
+.slide{position:absolute;inset:0;display:none;overflow:hidden}
+.slide.active{display:block;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.layer{position:absolute;inset:0;display:none;z-index:40}
+.layer.show{display:block;animation:fadeIn .3s ease}
+.dim{position:absolute;left:0;top:45px;width:1200px;height:630px;background:rgba(0,0,0,.55)}
+
+/* master: white bar, logo, chapter menu, sound toggle */
+#master{position:absolute;inset:0;z-index:30;pointer-events:none}
+#master.hidden{display:none}
+.hdr{position:absolute;left:0;top:0;width:1200px;height:44px;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+.hdr .logo{position:absolute;left:1110px;top:5px;height:34px}
+.menu{position:absolute;right:113px;top:0;height:44px;display:flex;align-items:center;font-size:15.5px;color:#111;white-space:nowrap}
+.menu span{padding:0 6px;line-height:1}
+.menu span+span{border-right:1.5px solid #111}
+.menu span.cur{font-weight:800}
+.menu span.ok{color:#6d8a12}
+#sound{position:absolute;left:14px;top:7px;width:30px;height:30px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;pointer-events:auto;transition:transform .15s}
+#sound:hover{transform:scale(1.1)}
+#sound svg{width:18px;height:18px}
+#sound .off{display:none}
+#sound.muted .on{display:none}
+#sound.muted .off{display:block}
+
+/* nav buttons: white circle, dark arrow */
+#controls{position:absolute;inset:0;z-index:60;pointer-events:none}
+.navbtn{position:absolute;top:607px;width:50px;height:50px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;pointer-events:auto;transition:transform .15s,opacity .2s}
+.navbtn:hover{transform:scale(1.08)}
+.navbtn svg{width:34px;height:34px}
+#btnNext{left:15px}
+#btnPrev{left:1133px}
+.navbtn.gone{display:none}
+
+/* entrance animations (re-run each time a slide / layer is shown) */
+@keyframes rise{from{opacity:0;translate:0 16px}to{opacity:1;translate:0 0}}
+@keyframes popin{0%{opacity:0;scale:.6}70%{opacity:1;scale:1.06}100%{opacity:1;scale:1}}
+@keyframes slidein{from{opacity:0;translate:-60px 0}to{opacity:1;translate:0 0}}
+@keyframes slidel{from{opacity:0;translate:40px 0}to{opacity:1;translate:0 0}}
+@keyframes dropin{0%{opacity:0;translate:0 -40px;scale:.9}70%{opacity:1;translate:0 4px;scale:1.02}100%{opacity:1;translate:0 0;scale:1}}
+.in{animation:rise .5s ease var(--d,0s) both}
+.in.pop,.layer .in.toast,.layer .in.card{animation:popin .45s ease var(--d,0s) both}
+.col>.in{animation:slidel .5s ease var(--d,0s) both}
+.pulse.in{animation:rise .5s ease var(--d,0s) both,pulse 1.8s ease-in-out calc(var(--d,0s) + .5s) infinite}
+.after-video{opacity:0;pointer-events:none;transition:opacity .6s ease}
+.after-video.shown{opacity:1;pointer-events:auto}
+
+/* story button: white, light-blue border */
+.btn{position:absolute;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;background:#fff;border:1px solid var(--sky);border-radius:10px;color:var(--navy);font-size:17px;font-weight:700;line-height:1.15;padding:0 10px;box-shadow:0 2px 6px rgba(0,0,0,.25);transition:background .15s,transform .15s}
+.btn:hover{background:var(--sky);transform:scale(1.03)}
+.pulse{animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(108,207,246,.8)}60%{box-shadow:0 0 0 10px rgba(108,207,246,0)}}
+.card{position:absolute;background:#fff;border:1px solid var(--navy);border-radius:20px;box-shadow:0 4px 18px rgba(0,0,0,.35)}
+
+/* Radio Check – equalizer bars */
+.eq{display:flex;gap:4px;align-items:flex-end;height:26px}
+.eq i{display:block;width:5px;background:var(--sky);border-radius:2px;animation:eq 1s ease-in-out infinite}
+.eq i:nth-child(1){animation-delay:-.2s}.eq i:nth-child(2){animation-delay:-.6s}.eq i:nth-child(3){animation-delay:-.1s}.eq i:nth-child(4){animation-delay:-.8s}.eq i:nth-child(5){animation-delay:-.4s}
+@keyframes eq{0%,100%{height:6px}50%{height:26px}}
+
+/* navigation help list (slide 4) */
+.navhelp{list-style:none}
+.navhelp li{display:flex;align-items:center;gap:10px;margin-top:6px}
+.navhelp .ico{flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+.navhelp .ico svg{width:20px;height:20px}
+.navhelp .ico.bar{border-radius:6px;width:30px;height:22px;flex-basis:30px;font-size:10px;font-weight:800;color:var(--navy)}
+
+/* ---------- channel slides: live text cards placed exactly over the cards in the design ---------- */
+.ttl,.cd{background:#fafcff;border-radius:15px;box-shadow:0 3px 10px rgba(0,0,0,.28)}
+.ttl{display:flex;align-items:center;gap:14px;padding:6px 20px 6px 14px}
+.ttl img{flex:0 0 auto;height:78px}
+.ttl .t1{font-size:26px;font-weight:800;color:var(--ink);line-height:1.08}
+.ttl .t2{font-size:36px;font-weight:800;color:#F7931E;line-height:1.08}
+.cd{display:flex;align-items:center;gap:14px;padding:6px 20px 6px 16px;font-size:15.3px;line-height:1.3;color:var(--ink)}
+.cd p{flex:1}
+.cd img{flex:0 0 50px;width:50px}
+.chev{width:14px;height:14px;border-right:3px solid var(--blue);border-bottom:3px solid var(--blue);transform:rotate(45deg);z-index:2}
+.cta{display:flex;align-items:center;padding:6px 18px 6px 58px;border-radius:15px;background:linear-gradient(90deg,#F37B12,#F99D26);color:#fff;font-size:16.5px;font-weight:700;line-height:1.3;text-align:right;box-shadow:0 3px 10px rgba(0,0,0,.35);transition:filter .15s}
+.cta:hover{filter:brightness(1.07)}
+.cta .flag{position:absolute;right:14px;top:10px;width:34px}
+.cta span{flex:1;padding-right:44px}
+.screen{cursor:pointer;border-radius:6px;transition:background .25s}
+.screen:hover{background:rgba(0,25,48,.12)}
+.screen.in{animation:fadeIn .7s ease var(--d,0s) both}
+.bigplay{position:absolute;left:50%;top:45%;width:74px;height:74px;margin:-37px 0 0 -37px;border-radius:50%;background:var(--orange);border:3px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.55);animation:pulseO 1.8s ease-in-out infinite;transition:transform .15s}
+.bigplay svg{width:28px;height:28px;margin-left:-4px}
+.screen:hover .bigplay{transform:scale(1.1)}
+.plbl{position:absolute;left:50%;top:calc(45% + 46px);width:180px;margin-left:-90px;text-align:center;color:#fff;background:rgba(0,25,48,.85);border-radius:12px;font-size:15px;font-weight:800;padding:2px 0}
+@keyframes pulseO{0%,100%{box-shadow:0 0 0 0 rgba(249,157,38,.85)}60%{box-shadow:0 0 0 14px rgba(249,157,38,0)}}
+
+/* video slides: the video plays inside a large monitor */
+.shade{left:0;top:45px;width:1200px;height:630px;background:rgba(0,12,26,.8)}
+.mframe{background:linear-gradient(#1d2026,#08090b);border:1.5px solid #3b4049;border-radius:12px;box-shadow:0 12px 34px rgba(0,0,0,.7)}
+.mneck{background:linear-gradient(#3a3e45,#1a1c20)}
+.mbase{background:linear-gradient(#454a52,#15171a);border-radius:7px}
+.mtitle{display:flex;align-items:center;gap:6px;color:#fff;font-size:15px;font-weight:800}
+.player{background:#000;object-fit:contain}
+
+/* channel map: the six screens in the design are the click areas */
+.scr{position:absolute;cursor:pointer;border:3px solid transparent;border-radius:6px;transition:background .2s,border-color .2s}
+.scr:hover{border-color:var(--sky);background:rgba(108,207,246,.15)}
+.scr .no{position:absolute;right:-12px;top:-12px;width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,.5)}
+.scr .tag{position:absolute;left:8px;bottom:8px;display:none;background:var(--green);color:var(--navy);font-size:13px;font-weight:800;border-radius:9px;padding:0 9px;line-height:21px;box-shadow:0 2px 5px rgba(0,0,0,.4)}
+.scr.done:not(:hover){border-color:transparent}
+.scr.done .no{background:#8fb31c}
+.scr.done .tag{display:block}
+/* bottom row: the crew's heads cover the lower edge of the screens – no bottom line, no glow below */
+.scr[data-station="4"],.scr[data-station="5"],.scr[data-station="6"]{border-bottom-color:transparent!important;clip-path:inset(-40px -40px 0 -40px)}
+.scr.just .tag{animation:popin .5s ease .5s both}
+.scr.next{border-color:var(--sky);animation:glow 1.6s ease-in-out infinite}
+.scr.next .no{background:var(--orange)}
+.scr.locked{cursor:default}
+.scr.locked:hover{border-color:transparent;background:none}
+@keyframes glow{0%,100%{box-shadow:0 0 6px rgba(108,207,246,.4);background:rgba(108,207,246,.04)}50%{box-shadow:0 0 0 3px rgba(108,207,246,.7),0 0 26px rgba(108,207,246,1);background:rgba(108,207,246,.18)}}
+.mhint{left:360px;top:612px;width:480px;height:42px;display:flex;align-items:center;justify-content:center;gap:14px;background:rgba(0,25,48,.92);border:1px solid var(--sky);border-radius:21px;box-shadow:0 4px 14px rgba(0,0,0,.5);color:#fff;font-size:15.5px;font-weight:800}
+.leds{display:flex;align-items:center;gap:5px}
+.leds i{display:block;width:11px;height:11px;border-radius:50%;background:#34465a;border:1px solid #6b7c8f}
+.leds i.on{background:var(--green);border-color:var(--green);box-shadow:0 0 6px var(--green)}
+
+/* closing (slide 17 design) */
+.endtxt{background:#fff;color:var(--ink);padding:4px 10px 0 6px}
+.endtxt .intro{font-size:15.5px;font-weight:700;line-height:1.3}
+.endlist{list-style:none;margin-top:8px}
+.endlist li{display:flex;align-items:center;gap:10px;font-size:15px;line-height:1.2;padding:4px 0;border-bottom:1.5px dashed #c9d6e8}
+.endlist img{flex:0 0 26px;width:26px}
+.endtxt .outro{margin-top:12px;font-size:15px;line-height:1.35}
+/* closing (older layout) */
+.sum{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.sum div{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(108,207,246,.5);border-right:5px solid var(--green);border-radius:10px;padding:5px 10px;color:#fff;font-size:15px;line-height:1.2}
+.sum img{flex:0 0 38px;width:38px;background:#fff;border-radius:50%;padding:3px}
+.sum small{display:block;color:var(--sky);font-weight:800;font-size:13px}
+.toast{position:absolute;left:330px;top:230px;width:540px;padding:26px;background:#fff;border:1px solid var(--navy);border-radius:20px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast img{width:110px;margin:0 auto 4px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="arrowL" viewBox="0 0 24 24"><path d="M19.5 12H5.5M11.5 5.5L5 12l6.5 6.5" fill="none" stroke="#001930" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="arrowR" viewBox="0 0 24 24"><path d="M4.5 12h14M12.5 5.5L19 12l-6.5 6.5" fill="none" stroke="#001930" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="playI" viewBox="0 0 12 12"><path d="M3 1.5v9L10.5 6z" fill="#001930"/></symbol>
+    <symbol id="dblL" viewBox="0 0 24 24"><path d="M12 6l-6 6 6 6M19 6l-6 6 6 6" fill="none" stroke="#3E6FD8" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
+<div id="stage">
+
+<!-- ======================= MASTER ======================= -->
+<div id="master">
+  <div class="hdr">
+    <img class="logo" src="assets/logo-jlm.png" alt="עיריית ירושלים">
+    <div class="menu" id="menu"><span>מבוא</span><span>Optimus</span><span>CRM</span><span>ניהול ידע</span><span>Glassix</span><span>GIS</span><span>אתר העירייה</span><span>סיכום</span></div>
+    <button id="sound" aria-label="השתקה / הפעלת צלילים">
+      <svg class="on" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="#fff"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      <svg class="off" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" fill="#fff"/><path d="m16 9 6 6M22 9l-6 6"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ======================= 01 פתיח (סרטון "שקף 1 בתסריט") ======================= -->
+<section class="slide" id="s01" data-title="פתיח" data-master="0" data-chapter="0">
+  <!-- הסרטון מתנגן פעם אחת ונעצר על הפריים האחרון; הכותרת והכפתור נכנסים באנימציה -->
+  <video class="a bg" id="vOpen" src="assets/opening.mp4" poster="assets/bg-opening.jpg" muted playsinline preload="auto" style="left:0;top:0;width:1200px;height:676px;object-fit:cover"></video>
+  <div class="a bg" style="left:0;top:0;width:1200px;height:453px;background:linear-gradient(to bottom,rgba(255,255,255,.25),rgba(255,255,255,0))"></div>
+  <img class="a" data-anim="dropin" data-delay="1" src="assets/title.png" style="left:205px;top:161px;width:764px" alt="תדר 106 – מתחברים ומאזינים">
+  <div class="a" data-anim="slidein" data-delay=".3" style="left:-74px;top:21px;width:330px;height:220px;background:#fff;border-radius:0 110px 110px 0;box-shadow:0 3px 10px rgba(0,0,0,.3)"></div>
+  <img class="a" data-anim="slidein" data-delay=".45" src="assets/speedo-3.png" style="left:44px;top:30px;width:127px" alt="מ-0 ל-106 תחנות – תחנה 3">
+  <img class="a" data-anim="slidein" data-delay=".55" src="assets/logo-106.png" style="left:49px;top:152px;width:128px" alt="106 המוקד העירוני">
+  <img class="a" data-delay=".3" src="assets/logo-jlm.png" style="left:1084px;top:8px;width:141px" alt="עיריית ירושלים">
+  <button class="btn pulse" data-act="next" data-delay="1.8" style="left:471px;top:572px;width:220px;height:48px;font-size:18.7px">קדימה, בואו נתחבר לתדר</button>
+</section>
+
+<!-- ======================= 02 Radio Check ======================= -->
+<section class="slide" id="s02" data-title="Radio Check" data-chapter="0">
+  <!-- הנציגה עומדת ומסבירה (הטקסט על הלוח שמאחוריה) -->
+  <img class="a bg" src="assets/bg-radio.jpg" style="left:0;top:45px;width:1200px;height:654px" alt="">
+  <div class="a f16 w" style="left:590px;top:104px;width:548px;font-weight:800;display:flex;align-items:center;gap:12px">Radio Check <span class="eq" dir="ltr"><i></i><i></i><i></i><i></i><i></i></span></div>
+  <div class="a f128 w lh" style="left:590px;top:148px;width:548px">
+    <p><b class="sky">במוקד 106 הכול קורה בזמן אמת:</b><br>שיחות נכנסות, פניות נפתחות, מידע נבדק, מיקומים מתחדדים והטיפול עובר לגורמים בשטח.</p>
+    <p style="margin-top:16px">כדי שהמשמרת תעבור חלק ושכל התקשורת עם הגורמים השונים תהיה רציפה, עלינו, הנציגים, להכיר איך נכנסים לכל מערכת, מתי משתמשים בה, למה היא חשובה, ואיך היא משתלבת בתהליך העבודה של המוקד.</p>
+    <p style="margin-top:16px"><b>ביחידת לימוד זו נתחבר לתדר 106:</b><br>התדר שמרכז את מערכות העבודה שילוו אתכם לאורך המשמרת.</p>
+  </div>
+</section>
+
+<!-- ======================= 03 המטרה (סרטון – המשך שקף 2) ======================= -->
+<section class="slide" id="s03" data-title="המטרה – תדר 106 נפתח" data-chapter="0">
+  <video class="a bg" id="vGoal" src="assets/goal.mp4" poster="assets/bg-goal.jpg" muted playsinline preload="auto" style="left:0;top:46px;width:1200px;height:653px;object-fit:cover"></video>
+  <div class="a f16 w lh" data-delay=".8" style="left:590px;top:105px;width:564px"><b>המטרה:</b><br>לזהות את הצורך, לפתוח את הערוץ הנכון<br>ולהמשיך טיפול עד לקו הסיום.</div>
+  <div class="a lh" data-delay="1.6" style="left:564px;top:212px;width:590px;font-size:34px;font-weight:800;line-height:1.25"><span class="sky">אוזניות על האוזניים,<br>מסכים דולקים —</span><br><span class="org">תדר 106 נפתח!</span></div>
+</section>
+
+<!-- ======================= 04 איך מתחברים לתדר? ======================= -->
+<section class="slide" id="s04" data-title="איך מתחברים לתדר?" data-chapter="0">
+  <img class="a bg" src="assets/bg-content.jpg" style="left:0;top:46px;width:1203px;height:630px" alt="">
+  <div class="a f16 w" style="left:579px;top:96px;width:556px;font-weight:800">איך מתחברים לתדר?</div>
+  <div class="a f128 w lh" style="left:470px;top:140px;width:665px">
+    <p>במהלך המשמרת נעזרים במערכות שונות, וכל אחת מהן מסייעת לנו בנקודה אחרת בטיפול בפנייה.</p>
+    <p>נכיר כל מערכת דרך הרגע שבו היא פוגשת אותנו בעבודה: נבין מתי משתמשים בה, איזה צורך היא עוזרת לפתור ואיך היא מסייעת לנו להתקדם בטיפול.</p>
+    <p>בכל מערכת נכיר את סביבת העבודה, נלמד איך מתמצאים בה ונתמקד בפעולות המרכזיות שחשוב להכיר כדי לעבוד בצורה יעילה ומדויקת.</p>
+    <p style="margin-top:12px"><b class="sky">הנחיות ניווט:</b></p>
+    <ul class="navhelp f11">
+      <li><span class="ico"><svg><use href="#arrowL"/></svg></span>החץ קדימה יקדם אתכם לערוץ הבא.</li>
+      <li><span class="ico"><svg><use href="#arrowR"/></svg></span>החץ אחורה יחזיר אתכם לבדיקה חוזרת.</li>
+      <li><span class="ico bar">|||</span>סרגל ההתקדמות העליון יראה איפה אתם נמצאים לאורך התדר.</li>
+    </ul>
+    <p style="margin-top:12px"><b class="org">בכל פעם נפתח ערוץ אחד — עד שכל לוח הערוצים של המשמרת יהיה מכויל.</b></p>
+  </div>
+  <button class="btn" data-act="next" style="left:305px;top:412px;width:150px;height:48px">ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 05 מפת הערוצים (0/6) + שכבת פתיחה ======================= -->
+<section class="slide map" id="s05" data-title="מפת הערוצים של תדר 106" data-chapter="0" data-done="0" data-intro="intro"></section>
+
+<!-- ======================= 06 ערוץ 1 – Optimus ("שקף 5 בתסריט") ======================= -->
+<section class="slide chan" id="s06" data-title="ערוץ ניהול השיחות: Optimus" data-chapter="1">
+  <img class="a bg" src="assets/bg-ch-optimus.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <!-- מסך המחשב: כפתור הפעלה במרכז המסך, עולה בפייד אחרי 2 שניות (מעבר לשקף הסרטון) -->
+  <div class="a screen" data-act="next" data-delay="2" style="left:398px;top:228px;width:352px;height:296px"><span class="bigplay"><svg><use href="#playI"/></svg></span><span class="plbl">לצפייה בסרטון</span></div>
+  <!-- כרטיסי הטקסט יושבים בדיוק על הכרטיסים שבעיצוב -->
+  <div class="a ttl" style="left:761px;top:71px;width:431px;height:116px"><img src="assets/logo-optimus.png" alt="Optimus"><div><div class="t1">ערוץ ניהול השיחות:</div><div class="t2">Optimus</div></div></div>
+  <div class="a cd" style="left:761px;top:193px;width:431px;height:104px"><p>כל משמרת במוקד 106 מתחילה בחיבור לעמדה וקבלת שיחות מתושבים.</p><img src="assets/ci-headset.svg" alt=""></div>
+  <div class="a cd" style="left:761px;top:303px;width:431px;height:108px"><p>לפני שאפשר לברר פרטים, לפתוח פנייה או לתת מענה, צריך לוודא שאנחנו מחוברים למערכת שמנהלת את כניסת השיחות למוקד.</p><img src="assets/ci-clipboard.svg" alt=""></div>
+  <div class="a cd" style="left:761px;top:416px;width:431px;height:130px"><p>כאן נכנסת <b>Optimus</b>: המערכת שמחברת את הנציגים לעמדה, מאפשרת כניסה למצב עבודה ומוודאת ששיחות נכנסות יגיעו לנציגים הזמינים במשמרת.</p><img src="assets/ci-users-arrow.svg" alt=""></div>
+  <i class="a chev" style="left:969px;top:291px"></i>
+  <i class="a chev" style="left:969px;top:404px"></i>
+  <button class="a cta" data-act="next" style="left:761px;top:550px;width:431px;height:99px"><img class="flag" src="assets/ci-flag.svg" alt=""><span>בואו נתחבר לערוץ ניהול השיחות ונראה איך מתחילים לקבל אותן!</span></button>
+</section>
+
+<!-- ======================= 07 סרטון Optimus ======================= -->
+<section class="slide vid" id="s07" data-title="סרטון Optimus" data-chapter="1">
+  <img class="a bg" src="assets/bg-ch-optimus.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="a bg shade"></div>
+  <div class="a mframe" style="left:150px;top:56px;width:900px;height:545px"></div>
+  <div class="a mneck" style="left:570px;top:601px;width:60px;height:22px"></div>
+  <div class="a mbase" style="left:490px;top:621px;width:220px;height:12px"></div>
+  <div class="a mtitle" style="left:162px;top:58px;width:876px;height:26px">ערוץ ניהול השיחות: <span class="sky">Optimus</span></div>
+  <video class="a player" src="assets/vid-optimus.mp4" controls playsinline preload="metadata" style="left:162px;top:84px;width:876px;height:493px"></video>
+  <button class="btn after-video pulse" data-act="next" style="left:840px;top:612px;width:220px;height:42px">חזרה ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 08 מפת הערוצים (1/6) ======================= -->
+<section class="slide map" id="s08" data-title="מפת הערוצים (2)" data-chapter="2" data-done="1"></section>
+
+<!-- ======================= 09 ערוץ 2 – CRM ("שקף 7 בתסריט") ======================= -->
+<section class="slide chan" id="s09" data-title="ערוץ תיעוד וניתוב: CRM" data-chapter="2">
+  <img class="a bg" src="assets/bg-ch-crm.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <!-- מסך המחשב: כפתור הפעלה במרכז המסך, עולה בפייד אחרי 2 שניות (מעבר לשקף הסרטון) -->
+  <div class="a screen" data-act="next" data-delay="2" style="left:338px;top:236px;width:410px;height:298px"><span class="bigplay"><svg><use href="#playI"/></svg></span><span class="plbl">לצפייה בסרטון</span></div>
+  <!-- כרטיסי הטקסט יושבים בדיוק על הכרטיסים שבעיצוב -->
+  <div class="a ttl" style="left:759px;top:75px;width:432px;height:120px"><img src="assets/logo-crm.png" alt="Dynamics 365 מוקד 106"><div><div class="t1">ערוץ תיעוד וניתוב:</div><div class="t2">CRM</div></div></div>
+  <div class="a cd" style="left:759px;top:200px;width:432px;height:100px"><p>אחרי שהשיחה נכנסת, מתחיל שלב הטיפול בפנייה.</p><img src="assets/ci-doc-edit.svg" alt=""></div>
+  <div class="a cd" style="left:759px;top:306px;width:432px;height:107px"><p>במוקד 106 כל פנייה צריכה להיות מתועדת: בדיווח על מפגע, בבקשה למידע, או אם הפנייה צריכה לעבור להמשך טיפול של מחלקה מקצועית.</p><img src="assets/ci-clipboard.svg" alt=""></div>
+  <div class="a cd" style="left:759px;top:418px;width:432px;height:121px"><p>כאן נכנסת מערכת <b>CRM</b> – המערכת המרכזית שבה פותחים פניות, מתעדים את פרטי המקרה, מסווגים את סוג הפנייה ומנתבים אותה לגורם המתאים.</p><img src="assets/ci-users-arrow.svg" alt=""></div>
+  <i class="a chev" style="left:967px;top:293px"></i>
+  <i class="a chev" style="left:967px;top:406px"></i>
+  <button class="a cta" data-act="next" style="left:759px;top:543px;width:432px;height:107px"><img class="flag" src="assets/ci-flag.svg" alt=""><span>בואו נפתח את ערוץ התיעוד ונראה איך פנייה מקבלת מסלול טיפול במערכת.</span></button>
+</section>
+
+<!-- ======================= 10 סרטון CRM ======================= -->
+<section class="slide vid" id="s10" data-title="סרטון CRM" data-chapter="2">
+  <img class="a bg" src="assets/bg-ch-crm.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="a bg shade"></div>
+  <div class="a mframe" style="left:150px;top:56px;width:900px;height:545px"></div>
+  <div class="a mneck" style="left:570px;top:601px;width:60px;height:22px"></div>
+  <div class="a mbase" style="left:490px;top:621px;width:220px;height:12px"></div>
+  <div class="a mtitle" style="left:162px;top:58px;width:876px;height:26px">ערוץ תיעוד וניתוב: <span class="sky">CRM</span></div>
+  <video class="a player" src="assets/vid-crm.mp4" controls playsinline preload="metadata" style="left:162px;top:84px;width:876px;height:493px"></video>
+  <button class="btn after-video pulse" data-act="next" style="left:840px;top:612px;width:220px;height:42px">חזרה ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 11 מפת הערוצים (2/6) ======================= -->
+<section class="slide map" id="s11" data-title="מפת הערוצים (3)" data-chapter="3" data-done="2"></section>
+
+<!-- ======================= 12 ערוץ 3 – ניהול ידע ("שקף 9 בתסריט") ======================= -->
+<section class="slide chan" id="s12" data-title="ערוץ ידע ועדכונים: ניהול ידע" data-chapter="3">
+  <img class="a bg" src="assets/bg-ch-knowledge.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <!-- מסך המחשב: כפתור הפעלה במרכז המסך, עולה בפייד אחרי 2 שניות (מעבר לשקף הסרטון) -->
+  <div class="a screen" data-act="next" data-delay="2" style="left:352px;top:232px;width:398px;height:300px"><span class="bigplay"><svg><use href="#playI"/></svg></span><span class="plbl">לצפייה בסרטון</span></div>
+  <!-- כרטיסי הטקסט יושבים בדיוק על הכרטיסים שבעיצוב -->
+  <div class="a ttl" style="left:762px;top:70px;width:427px;height:112px"><img src="assets/logo-knowledge.png" alt="מערכת לניהול ידע"><div><div class="t1">ערוץ ידע ועדכונים:</div><div class="t2">ניהול ידע</div></div></div>
+  <div class="a cd" style="left:762px;top:185px;width:427px;height:101px"><p>במקום לזכור הכול בעל פה, חשוב להכיר את מקורות המידע ולדעת איפה למצוא את התשובה הנכונה בזמן אמת.</p><img src="assets/ci-clipboard.svg" alt=""></div>
+  <div class="a cd" style="left:762px;top:291px;width:427px;height:120px"><p><b>מערכת ניהול ידע</b> היא הערוץ שמרכז את המידע המקצועי של המוקד: תדריכים, עדכונים, נהלים, אנשי קשר, טלפונים, אירועים ומבדקים.</p><img src="assets/ci-cloud.svg" alt=""></div>
+  <div class="a cd" style="left:762px;top:417px;width:427px;height:144px"><p>לפני שנענה לשיחות, ניכנס למערכת ונתעדכן במידע החשוב והרלוונטי למשמרת. במהלך העבודה נחזור אליה בכל פעם שנרצה לדייק תשובה, לבדוק מידע או להבין כיצד נכון להמשיך את הטיפול.</p><img src="assets/ci-users-gear.svg" alt=""></div>
+  <i class="a chev" style="left:968px;top:279px"></i>
+  <i class="a chev" style="left:968px;top:405px"></i>
+  <button class="a cta" data-act="next" style="left:762px;top:565px;width:427px;height:91px"><img class="flag" src="assets/ci-flag.svg" alt=""><span>בואו נתחבר לערוץ הידע ונראה איך מוצאים את המידע העדכני ביותר.</span></button>
+</section>
+
+<!-- ======================= 13 סרטון ניהול ידע ======================= -->
+<section class="slide vid" id="s13" data-title="סרטון ניהול ידע" data-chapter="3">
+  <img class="a bg" src="assets/bg-ch-knowledge.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="a bg shade"></div>
+  <div class="a mframe" style="left:150px;top:56px;width:900px;height:545px"></div>
+  <div class="a mneck" style="left:570px;top:601px;width:60px;height:22px"></div>
+  <div class="a mbase" style="left:490px;top:621px;width:220px;height:12px"></div>
+  <div class="a mtitle" style="left:162px;top:58px;width:876px;height:26px">ערוץ ידע ועדכונים: <span class="sky">ניהול ידע</span></div>
+  <video class="a player" src="assets/vid-knowledge.mp4" controls playsinline preload="metadata" style="left:162px;top:84px;width:876px;height:493px"></video>
+  <button class="btn after-video pulse" data-act="next" style="left:840px;top:612px;width:220px;height:42px">חזרה ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 14 מפת הערוצים (3/6) ======================= -->
+<section class="slide map" id="s14" data-title="מפת הערוצים (4)" data-chapter="4" data-done="3"></section>
+
+<!-- ======================= 15 ערוץ 4 – Glassix ("שקף 11 בתסריט") ======================= -->
+<section class="slide chan" id="s15" data-title="ערוץ דיגיטלי: Glassix" data-chapter="4">
+  <img class="a bg" src="assets/bg-ch-glassix.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <!-- מסך המחשב: כפתור הפעלה במרכז המסך, עולה בפייד אחרי 2 שניות (מעבר לשקף הסרטון) -->
+  <div class="a screen" data-act="next" data-delay="2" style="left:357px;top:229px;width:390px;height:282px"><span class="bigplay"><svg><use href="#playI"/></svg></span><span class="plbl">לצפייה בסרטון</span></div>
+  <!-- כרטיסי הטקסט יושבים בדיוק על הכרטיסים שבעיצוב -->
+  <div class="a ttl" style="left:763px;top:67px;width:426px;height:114px"><img src="assets/logo-glassix.png" alt="glassix"><div><div class="t1">ערוץ דיגיטלי:</div><div class="t2">Glassix</div></div></div>
+  <div class="a cd" style="left:763px;top:184px;width:426px;height:100px"><p>יש פניות שמגיעות למוקד דרך הטלפון, ויש כאלה המגיעות דרך האתר. גם שם כמובן ניתן את המענה המסודר והשירותי ביותר. <b>Glassix</b> היא המערכת שמרכזת פניות דיגיטליות.</p><img src="assets/ci-chat.svg" alt=""></div>
+  <div class="a cd" style="left:763px;top:290px;width:426px;height:111px"><p>בתחילת העבודה במוקד תקבלו למייל קישור ייעודי למערכת. בכל משמרת יש להיכנס למערכת באמצעות אותו קישור. <b>שימו לב שאין צורך בסיסמה</b> וההתחברות היא אוטומטית במערכת.</p><img src="assets/ci-link.svg" alt=""></div>
+  <div class="a cd" style="left:763px;top:407px;width:426px;height:86px"><p>כאשר הבוט לא יודע לתת מענה, הפנייה עוברת אלינו למוקד, ואנו ממשיכים את ההתכתבות מול התושב/ת.</p><img src="assets/ci-robot.svg" alt=""></div>
+  <div class="a cd" style="left:763px;top:498px;width:426px;height:76px"><p>במידת הצורך, הפנייה הדיגיטלית מומרת לפנייה ב-CRM.</p><img src="assets/ci-users-gear.svg" alt=""></div>
+  <i class="a chev" style="left:969px;top:277px"></i>
+  <i class="a chev" style="left:969px;top:395px"></i>
+  <i class="a chev" style="left:969px;top:486px"></i>
+  <button class="a cta" data-act="next" style="left:763px;top:576px;width:426px;height:83px"><img class="flag" src="assets/ci-flag.svg" alt=""><span>בואו נתחבר לערוץ הדיגיטלי ונראה איך פנייה כתובה הופכת לחלק מתהליך העבודה במוקד.</span></button>
+</section>
+
+<!-- ======================= 16 סרטון Glassix ======================= -->
+<section class="slide vid" id="s16" data-title="סרטון Glassix" data-chapter="4">
+  <img class="a bg" src="assets/bg-ch-glassix.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="a bg shade"></div>
+  <div class="a mframe" style="left:150px;top:56px;width:900px;height:545px"></div>
+  <div class="a mneck" style="left:570px;top:601px;width:60px;height:22px"></div>
+  <div class="a mbase" style="left:490px;top:621px;width:220px;height:12px"></div>
+  <div class="a mtitle" style="left:162px;top:58px;width:876px;height:26px">ערוץ דיגיטלי: <span class="sky">Glassix</span></div>
+  <video class="a player" src="assets/vid-glassix.mp4" controls playsinline preload="metadata" style="left:162px;top:84px;width:876px;height:493px"></video>
+  <button class="btn after-video pulse" data-act="next" style="left:840px;top:612px;width:220px;height:42px">חזרה ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 17 מפת הערוצים (4/6) ======================= -->
+<section class="slide map" id="s17" data-title="מפת הערוצים (5)" data-chapter="5" data-done="4"></section>
+
+<!-- ======================= 18 ערוץ 5 – GIS ("שקף 13 בתסריט") ======================= -->
+<section class="slide chan" id="s18" data-title="ערוץ מיקום ומפה: GIS" data-chapter="5">
+  <img class="a bg" src="assets/bg-ch-gis.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <!-- מסך המחשב: כפתור הפעלה במרכז המסך, עולה בפייד אחרי 2 שניות (מעבר לשקף הסרטון) -->
+  <div class="a screen" data-act="next" data-delay="2" style="left:352px;top:230px;width:399px;height:287px"><span class="bigplay"><svg><use href="#playI"/></svg></span><span class="plbl">לצפייה בסרטון</span></div>
+  <!-- כרטיסי הטקסט יושבים בדיוק על הכרטיסים שבעיצוב -->
+  <div class="a ttl" style="left:762px;top:75px;width:428px;height:115px"><img src="assets/logo-gis.png" alt="GIS"><div><div class="t1">ערוץ מיקום ומפה:</div><div class="t2">GIS</div></div></div>
+  <div class="a cd" style="left:762px;top:197px;width:428px;height:107px"><p>לפעמים, כדי לטפל בפנייה בצורה המדויקת והנכונה ביותר, נרצה להבין בדיוק איפה היא מתרחשת.</p><img src="assets/ci-pin.svg" alt=""></div>
+  <div class="a cd" style="left:762px;top:313px;width:428px;height:124px"><p>כאשר תושבים מדווחים על מפגע, תקלה או אירוע במרחב העירוני, <b>מערכת GIS</b> עוזרת לנציגים לדייק את המיקום, לראות את הרחוב, לבדוק שכבות מידע ולהבין מה נמצא בסביבה.</p><img src="assets/ci-layers.svg" alt=""></div>
+  <div class="a cd" style="left:762px;top:443px;width:428px;height:103px"><p>כך אפשר לפתוח פנייה מדויקת יותר, לנתב אותה לגורם המתאים ולסייע במתן מענה יעיל בשטח.</p><img src="assets/ci-route.svg" alt=""></div>
+  <i class="a chev" style="left:969px;top:299px"></i>
+  <i class="a chev" style="left:969px;top:431px"></i>
+  <button class="a cta" data-act="next" style="left:762px;top:551px;width:428px;height:93px"><img class="flag" src="assets/ci-flag.svg" alt=""><span>בואו נתחבר לערוץ המפה ונראה איך מדייקים את תמונת השטח.</span></button>
+</section>
+
+<!-- ======================= 19 סרטון GIS ======================= -->
+<section class="slide vid" id="s19" data-title="סרטון GIS" data-chapter="5">
+  <img class="a bg" src="assets/bg-ch-gis.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="a bg shade"></div>
+  <div class="a mframe" style="left:150px;top:56px;width:900px;height:545px"></div>
+  <div class="a mneck" style="left:570px;top:601px;width:60px;height:22px"></div>
+  <div class="a mbase" style="left:490px;top:621px;width:220px;height:12px"></div>
+  <div class="a mtitle" style="left:162px;top:58px;width:876px;height:26px">ערוץ מיקום ומפה: <span class="sky">GIS</span></div>
+  <video class="a player" src="assets/vid-gis.mp4" controls playsinline preload="metadata" style="left:162px;top:84px;width:876px;height:493px"></video>
+  <button class="btn after-video pulse" data-act="next" style="left:840px;top:612px;width:220px;height:42px">חזרה ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 20 מפת הערוצים (5/6) ======================= -->
+<section class="slide map" id="s20" data-title="מפת הערוצים (6)" data-chapter="6" data-done="5"></section>
+
+<!-- ======================= 21 ערוץ 6 – אתר העירייה ("שקף 15 בתסריט") ======================= -->
+<section class="slide chan" id="s21" data-title="ערוץ מידע עירוני: אתר העירייה" data-chapter="6">
+  <img class="a bg" src="assets/bg-ch-site.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <!-- מסך המחשב: כפתור הפעלה במרכז המסך, עולה בפייד אחרי 2 שניות (מעבר לשקף הסרטון) -->
+  <div class="a screen" data-act="next" data-delay="2" style="left:363px;top:234px;width:384px;height:283px"><span class="bigplay"><svg><use href="#playI"/></svg></span><span class="plbl">לצפייה בסרטון</span></div>
+  <!-- כרטיסי הטקסט יושבים בדיוק על הכרטיסים שבעיצוב -->
+  <div class="a ttl" style="left:761px;top:73px;width:429px;height:108px"><img src="assets/logo-site.png" alt="עיריית ירושלים"><div><div class="t1">ערוץ מידע עירוני:</div><div class="t2">אתר העירייה</div></div></div>
+  <div class="a cd" style="left:761px;top:186px;width:429px;height:110px"><p>במהלך המשמרת תושבים פונים במגוון נושאים, בהם דיווח על מפגעים וכן כדי לקבל מידע: שעות קבלה, טפסים, אירועים, פרטי קשר או שירותים עירוניים.</p><img src="assets/ci-info.svg" alt=""></div>
+  <div class="a cd" style="left:761px;top:301px;width:429px;height:118px"><p>במקרים כאלה <b>אתר העירייה</b> הוא מקור מידע חשוב ומשלים. אחרי בדיקה במערכת ניהול הידע, ניתן להיעזר באתר כדי למצוא מידע נוסף, לאתר טפסים מקוונים ולבדוק פרטים של המחלקות.</p><img src="assets/ci-globe.svg" alt=""></div>
+  <div class="a cd" style="left:761px;top:424px;width:429px;height:133px"><p><b>חשוב לזכור:</b> אנחנו נותנים לתושבים את המענה המלא במהלך הפנייה. לצד המענה, אפשר להפנות לעמוד הרלוונטי באתר ולשלוח קישור ישיר, כך שבפעם הבאה הם יוכלו להיכנס לאתר באופן עצמאי ולאתר את המידע בקלות.</p><img src="assets/ci-send.svg" alt=""></div>
+  <i class="a chev" style="left:968px;top:289px"></i>
+  <i class="a chev" style="left:968px;top:412px"></i>
+  <button class="a cta" data-act="next" style="left:761px;top:562px;width:429px;height:86px"><img class="flag" src="assets/ci-flag.svg" alt=""><span>בואו נתחבר לערוץ המידע העירוני ונראה איך האתר עוזר לתת מענה מדויק יותר.</span></button>
+</section>
+
+<!-- ======================= 22 סרטון אתר העירייה ======================= -->
+<section class="slide vid" id="s22" data-title="סרטון אתר העירייה" data-chapter="6">
+  <img class="a bg" src="assets/bg-ch-site.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="a bg shade"></div>
+  <div class="a mframe" style="left:150px;top:56px;width:900px;height:545px"></div>
+  <div class="a mneck" style="left:570px;top:601px;width:60px;height:22px"></div>
+  <div class="a mbase" style="left:490px;top:621px;width:220px;height:12px"></div>
+  <div class="a mtitle" style="left:162px;top:58px;width:876px;height:26px">ערוץ מידע עירוני: <span class="sky">אתר העירייה</span></div>
+  <video class="a player" src="assets/vid-site.mp4" controls playsinline preload="metadata" style="left:162px;top:84px;width:876px;height:493px"></video>
+  <button class="btn after-video pulse" data-act="next" style="left:840px;top:612px;width:220px;height:42px">חזרה ללוח הערוצים</button>
+</section>
+
+<!-- ======================= 23 מפת הערוצים (6/6 – הכול מכויל) ======================= -->
+<section class="slide map" id="s23" data-title="מפת הערוצים – כל הערוצים מכוילים" data-chapter="7" data-done="6"></section>
+
+<!-- ======================= 24 סיכום – כל הערוצים פתוחים ======================= -->
+<section class="slide" id="s24" data-title="כל הערוצים פתוחים!" data-chapter="7">
+  <!-- "שקף 17 בתסריט": הכותרת והבאנר הכהה מהעיצוב; רשימת הערוצים והפסקה – טקסט חי מעל הלוח הלבן -->
+  <!-- סרטון הסיום (kling 30.9): מתנגן פעם אחת ונעצר על הפריים האחרון; הטקסט והכפתור עולים בסיומו -->
+  <video class="a bg" id="vEnd" src="assets/end.mp4" muted playsinline preload="auto" style="left:0;top:0;width:1200px;height:677px;object-fit:cover"></video>
+  <div class="a endtxt after-video" style="left:821px;top:166px;width:367px;height:372px">
+    <p class="intro">בתדר 106 הכרנו את מערכות העבודה המרכזיות שמלוות את נציגי המוקד לאורך המשמרת.</p>
+    <ul class="endlist">
+      <li><img src="assets/ci-headset.svg" alt="">דרך איזו מערכת מתחברים לשיחות</li>
+      <li><img src="assets/ci-clipboard.svg" alt="">היכן מתעדים ומנתבים פנייה</li>
+      <li><img src="assets/ci-cloud.svg" alt="">איפה מחפשים ידע ועדכונים</li>
+      <li><img src="assets/ci-chat.svg" alt="">איך מטפלים בפניות דיגיטליות</li>
+      <li><img src="assets/ci-pin.svg" alt="">כיצד אפשר לדייק את מיקום הפנייה</li>
+      <li><img src="assets/ci-info.svg" alt="">איך מאתרים מידע עירוני נוסף</li>
+    </ul>
+    <p class="outro"><b>כל מערכת היא ערוץ אחר בתמונת העבודה של המוקד, וכשהערוצים פתוחים —</b> קל יותר להבין מה קורה, לבחור את הפעולה הנכונה ולהוביל את הפנייה להמשך טיפול מדויק ועד לקו הסיום.</p>
+  </div>
+  <button class="btn pulse after-video" data-act="layer:done" data-sfx="finish" style="left:560px;top:600px;width:240px;height:50px;font-size:18.7px">סוגרים את התדר 🏁</button>
+  <div class="layer" data-layer="done">
+    <div class="dim"></div>
+    <div class="toast"><img src="assets/ic-radio.svg" alt=""><div class="f27" style="font-weight:800">כל הערוצים מכוילים!</div><div class="f16" style="margin-top:8px">סיימתם את יחידה 3 – תדר 106: מתחברים ומאזינים.</div></div>
+  </div>
+</section>
+
+<!-- ======================= CONTROLS ======================= -->
+<div id="controls">
+  <button class="navbtn" id="btnPrev" aria-label="הקודם"><svg><use href="#arrowR"/></svg></button>
+  <button class="navbtn" id="btnNext" aria-label="הבא"><svg><use href="#arrowL"/></svg></button>
+</div>
+
+<!-- map template (נשכפל לכל .slide.map) – "שקף ניווט - שקף 4 בתסריט": ששת המסכים שבתמונה הם אזורי הלחיצה -->
+<template id="mapTpl">
+  <img class="a bg" src="assets/bg-map.jpg" style="left:0;top:0;width:1200px;height:677px" alt="">
+  <div class="scr" data-station="1" data-go="s06" title="ערוץ ניהול השיחות – Optimus" style="left:810px;top:114px;width:366px;height:178px"><span class="no">1</span><span class="tag">✓ מכויל</span></div>
+  <div class="scr" data-station="2" data-go="s09" title="ערוץ תיעוד וניתוב – CRM" style="left:445px;top:116px;width:355px;height:180px"><span class="no">2</span><span class="tag">✓ מכויל</span></div>
+  <div class="scr" data-station="3" data-go="s12" title="ערוץ ידע ועדכונים – ניהול ידע" style="left:83px;top:120px;width:351px;height:177px"><span class="no">3</span><span class="tag">✓ מכויל</span></div>
+  <div class="scr" data-station="4" data-go="s15" title="ערוץ דיגיטלי – Glassix" style="left:813px;top:302px;width:366px;height:150px"><span class="no">4</span><span class="tag">✓ מכויל</span></div>
+  <div class="scr" data-station="5" data-go="s18" title="ערוץ מיקום ומפה – GIS" style="left:445px;top:304px;width:357px;height:148px"><span class="no">5</span><span class="tag">✓ מכויל</span></div>
+  <div class="scr" data-station="6" data-go="s21" title="ערוץ מידע עירוני – אתר העירייה" style="left:83px;top:305px;width:351px;height:147px"><span class="no">6</span><span class="tag">✓ מכויל</span></div>
+  <div class="a mhint"><span class="maphint">לחצו על המסך המהבהב כדי להתחבר לערוץ</span><span class="leds"><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+  <div class="layer" data-layer="intro">
+    <div class="dim"></div>
+    <div class="card" style="left:330px;top:175px;width:540px;height:270px"></div>
+    <div class="a f192 c" style="left:330px;top:195px;width:540px;font-weight:800">מפת הערוצים של תדר 106</div>
+    <div class="a f128 c lh" style="left:365px;top:242px;width:470px">זהו לוח הערוצים של המשמרת. כל ערוץ פותח מערכת אחרת, וכל מערכת נותנת לכם חלק נוסף מתמונת העבודה במוקד, כך שאתם מלווים את התושב לאורך המסלול ועד לקו&nbsp;הסיום&nbsp;–<br><b>טיפול וסגירת הפנייה.</b></div>
+    <div class="a f128 c" style="left:365px;top:344px;width:470px;font-weight:800;color:#1d9ad6">בכל פעם נפתח ערוץ אחד — לחצו על המסך המהבהב כדי להתחבר.</div>
+    <button class="btn" data-act="close" style="left:518px;top:386px;width:164px;height:42px">מתחילים לכייל</button>
+  </div>
+</template>
+
+</div>
+
+<script>
+(function(){
+  const stage = document.getElementById('stage');
+  const master = document.getElementById('master');
+  const menuSpans = [...document.querySelectorAll('#menu span')];
+  const btnNext = document.getElementById('btnNext');
+  const btnPrev = document.getElementById('btnPrev');
+
+  /* ---- sounds (assets/sfx/*.wav) ---- */
+  const SFX = {};
+  ['click', 'correct', 'wrong', 'start', 'finish', 'ring'].forEach(n => { const a = new Audio(`assets/sfx/${n}.wav`); a.preload = 'auto'; SFX[n] = a; });
+  const VOL = { click: .6, correct: .7 };
+  let muted = false;
+  try { muted = localStorage.getItem('u3-muted') === '1'; } catch (e) {}
+  const soundBtn = document.getElementById('sound');
+  soundBtn.classList.toggle('muted', muted);
+  soundBtn.addEventListener('click', e => {
+    e.stopPropagation(); muted = !muted; soundBtn.classList.toggle('muted', muted);
+    try { localStorage.setItem('u3-muted', muted ? '1' : '0'); } catch (err) {}
+    if (!muted) play('click');
+  });
+  function play(n){
+    if (muted || !SFX[n]) return;
+    const a = SFX[n].cloneNode(); a.volume = VOL[n] ?? 1; a.play().catch(() => {});
+  }
+
+  /* ---- build map slides ---- */
+  const tpl = document.getElementById('mapTpl');
+  document.querySelectorAll('.slide.map').forEach(s => {
+    s.appendChild(tpl.content.cloneNode(true));
+    const done = +s.dataset.done;
+    if (!s.dataset.intro) s.querySelector('.layer[data-layer="intro"]').remove();
+    s.querySelectorAll('.scr').forEach(c => {
+      const n = +c.dataset.station;
+      if (n <= done) { c.classList.add('done'); if (n === done) c.classList.add('just'); }
+      else if (n === done + 1) c.classList.add('next');
+      else c.classList.add('locked');
+    });
+    s.querySelectorAll('.leds i').forEach((l, i) => l.classList.toggle('on', i < done));
+    const hint = s.querySelector('.maphint');
+    if (done === 6) {
+      hint.textContent = 'כל הערוצים מכוילים!';
+      const b = document.createElement('button');
+      b.className = 'btn pulse'; b.dataset.act = 'next'; b.textContent = 'לסיכום התדר';
+      b.style.cssText = 'left:510px;top:560px;width:180px;height:42px';
+      s.appendChild(b);
+    } else if (done > 0) {
+      hint.textContent = 'ערוץ ' + done + ' מכויל! לחצו על המסך המהבהב';
+    }
+  });
+
+  const slides = [...document.querySelectorAll('.slide')];
+  const idx = id => slides.findIndex(s => s.id === id);
+  let cur = 0, k = 1;
+
+  function fit(){
+    k = Math.min(window.innerWidth / 1200, window.innerHeight / 675);
+    stage.style.transform = `translate(-50%,-50%) scale(${k})`;
+  }
+  window.addEventListener('resize', fit); fit();
+
+  /* ---- entrance animations: every visible element rises in, one after the other
+         (the cards of a .col slide in one by one) ---- */
+  function animate(root, base = 0, step = .06){
+    const els = [...root.children].filter(el => !el.classList.contains('bg') && !el.classList.contains('layer')
+      && !el.classList.contains('after-video') && !el.classList.contains('dim') && el.tagName !== 'TEMPLATE');
+    const all = [];
+    els.forEach(el => { if (el.classList.contains('col')) all.push(...el.children); else all.push(el); });
+    // channel slides: the text cards show at once (no animation) – only the play button fades in
+    const still = root.classList.contains('chan');
+    all.forEach((el, i) => {
+      if (still && !el.classList.contains('screen')) return;
+      el.classList.remove('in'); if (el.dataset.anim) el.style.animation = 'none';
+      void el.offsetWidth;                          // restart the animation
+      const d = el.dataset.delay !== undefined ? +el.dataset.delay : base + Math.min(i * (el.parentElement.classList.contains('col') ? .12 : step), 1.2);
+      el.style.setProperty('--d', d + 's');
+      el.classList.add('in');
+      if (el.dataset.anim) el.style.animation = `${el.dataset.anim} .7s ease ${d}s both`;
+    });
+  }
+
+  /* ---- videos: the opening / goal videos play muted once and hold their last frame;
+         the cursor videos (.slide.vid) play with narration + controls, and show "חזרה ללוח הערוצים" when they end ---- */
+  function startVideo(s){
+    const v = s.querySelector('video'); if (!v) return;
+    clearTimeout(s._vt);
+    v.pause();
+    try { v.currentTime = 0; } catch (e) {}
+    s._vt = setTimeout(() => { if (slides[cur] === s) tryPlay(v); }, 300);
+  }
+  function tryPlay(v){
+    const p = v.play();
+    if (p && p.catch) p.catch(() => v.addEventListener('canplay', () => v.play().catch(() => {}), { once: true }));
+  }
+  document.querySelectorAll('.slide.vid').forEach(s => {
+    const v = s.querySelector('video'), b = s.querySelector('.after-video');
+    v.addEventListener('ended', () => { b.classList.add('shown'); if (slides[cur] === s) { play('correct'); updateNav(); } });
+  });
+  // closing slide: the camera move ends on the closing design – then the live text and the finish button appear
+  const vEnd = document.getElementById('vEnd');
+  vEnd.addEventListener('ended', () => document.querySelectorAll('#s24 .after-video').forEach(x => x.classList.add('shown')));
+  vEnd.addEventListener('play', () => document.querySelectorAll('#s24 .after-video').forEach(x => x.classList.remove('shown')));
+  const resume = () => {
+    const v = slides[cur].querySelector('video');
+    if (v && v.paused && !v.ended && v.currentTime < .1) tryPlay(v);
+  };
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) resume(); });
+  document.addEventListener('pointerdown', resume, { capture: true });
+
+  /* ---- navigation: ← (left side) = forward, → (right side) = back; always clickable.
+         the forward arrow is hidden while the slide (or an open layer) shows its own "continue" button ---- */
+  function updateNav(){
+    const s = slides[cur];
+    const ownBtn = [...s.querySelectorAll('[data-act="next"]')].some(b => {
+      const l = b.closest('.layer');
+      if (l && !l.classList.contains('show')) return false;
+      if (b.classList.contains('screen')) return false;
+      return !b.classList.contains('after-video') || b.classList.contains('shown');
+    });
+    const popup = !!s.querySelector('.layer.show');
+    btnNext.classList.toggle('gone', cur === slides.length - 1 || ownBtn || popup);
+    btnPrev.classList.toggle('gone', cur === 0);
+  }
+  function go(i, silent){
+    if (i < 0 || i >= slides.length) return;
+    const old = slides[cur];
+    old.classList.remove('active'); hideLayers(old);
+    old.querySelectorAll('video').forEach(v => v.pause());
+    cur = i;
+    const s = slides[cur];
+    s.classList.add('active');
+    master.classList.toggle('hidden', s.dataset.master === '0');
+    menuSpans.forEach((m, j) => { m.classList.toggle('cur', j === +s.dataset.chapter); m.classList.toggle('ok', j > 0 && j < +s.dataset.chapter); });
+    animate(s, .15);
+    startVideo(s);
+    if (s.dataset.intro && !s._introDone) { s._introDone = true; setTimeout(() => { if (slides[cur] === s) showLayer(s, s.dataset.intro); }, 500); }
+    updateNav();
+  }
+  const next = () => go(cur + 1);
+  btnNext.addEventListener('click', () => {
+    const s = slides[cur];
+    if (s.classList.contains('map')) { const nx = s.querySelector('.scr.next'); if (nx) return go(idx(nx.dataset.go)); }
+    next();
+  });
+  btnPrev.addEventListener('click', () => go(cur - 1));
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'VIDEO') return;
+    if (e.key === 'ArrowLeft') btnNext.click();        // RTL: left = forward
+    else if (e.key === 'ArrowRight') btnPrev.click();  // right = back
+  });
+
+  /* ---- layers ---- */
+  function showLayer(s, name){
+    const l = s.querySelector(`.layer[data-layer="${name}"]`); if (!l) return;
+    l.classList.add('show');
+    animate(l, .05, .05);
+    updateNav();
+  }
+  function hideLayers(s){ s.querySelectorAll('.layer.show').forEach(l => l.classList.remove('show')); if (s === slides[cur]) updateNav(); }
+
+  stage.addEventListener('click', e => {
+    const a = e.target.closest('[data-act]'); if (!a) return;
+    const s = a.closest('.slide'), act = a.dataset.act;
+    if (a.dataset.sfx) play(a.dataset.sfx);
+    if (act === 'next') next();
+    else if (act === 'close') hideLayers(s);
+    else if (act.startsWith('layer:')) showLayer(s, act.slice(6));
+  });
+
+  /* ---- channel screens on the map ---- */
+  document.querySelectorAll('.scr').forEach(c => c.addEventListener('click', () => {
+    if (c.closest('.slide').querySelector('.layer.show')) return;
+    if (c.classList.contains('locked')) { play('wrong'); return; }
+    go(idx(c.dataset.go));
+  }));
+
+  window.lesson = { go: id => go(typeof id === 'number' ? id : idx(id), true) };
+  go(0, true);
+})();
+</script>
+</body>
+</html>
